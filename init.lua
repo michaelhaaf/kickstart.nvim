@@ -707,8 +707,17 @@ require('lazy').setup({
             'rafamadriz/friendly-snippets',
             config = function()
               require('luasnip.loaders.from_vscode').lazy_load()
+              require('luasnip.loaders.from_snipmate').lazy_load()
+              require('luasnip.loaders.from_lua').lazy_load()
             end,
           },
+        },
+        opts = {
+          keep_roots = true,
+          link_roots = true,
+          link_children = true,
+          delete_check_events = 'TextChanged',
+          region_check_events = 'CursorMoved',
         },
       },
       'saadparwaiz1/cmp_luasnip',
@@ -718,6 +727,7 @@ require('lazy').setup({
       --  into multiple repos for maintenance purposes.
       'hrsh7th/cmp-nvim-lsp',
       'hrsh7th/cmp-path',
+      'hrsh7th/cmp-buffer',
     },
     config = function()
       -- See `:help cmp`
@@ -789,6 +799,7 @@ require('lazy').setup({
           { name = 'nvim_lsp' },
           { name = 'luasnip' },
           { name = 'path' },
+          { name = 'buffer' },
         },
       }
     end,
