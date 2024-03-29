@@ -168,10 +168,10 @@ vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagn
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 
 -- Buffer switching keymaps
-vim.keymap.set("n", "]b", ":bnext<CR>", { silent = true })
-vim.keymap.set("n", "[b", ":bprevious<CR>", { silent = true })
-vim.keymap.set("n", "<Tab>", ":bnext<CR>", { silent = true })
-vim.keymap.set("n", "<S-Tab>", ":bprevious<CR>", { silent = true })
+vim.keymap.set('n', ']b', ':bnext<CR>', { silent = true })
+vim.keymap.set('n', '[b', ':bprevious<CR>', { silent = true })
+vim.keymap.set('n', '<Tab>', ':bnext<CR>', { silent = true })
+vim.keymap.set('n', '<S-Tab>', ':bprevious<CR>', { silent = true })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -594,7 +594,7 @@ require('lazy').setup({
                 callSnippet = 'Replace',
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-              -- diagnostics = { disable = { 'missing-fields' } },
+              diagnostics = { disable = { 'missing-fields' } },
             },
           },
         },
@@ -941,6 +941,10 @@ require('lazy').setup({
     },
   },
 })
+
+vim.treesitter.language.register('markdown', 'mdx')
+vim.treesitter.language.register('markdown', 'qmd')
+vim.treesitter.language.register('markdown', 'mdoc')
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
