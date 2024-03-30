@@ -170,20 +170,14 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- Buffer switching keymaps
 vim.keymap.set('n', ']b', ':bnext<CR>', { silent = true })
 vim.keymap.set('n', '[b', ':bprevious<CR>', { silent = true })
-vim.keymap.set('n', '<Tab>', ':bnext<CR>', { silent = true })
-vim.keymap.set('n', '<S-Tab>', ':bprevious<CR>', { silent = true })
+vim.keymap.set('n', '<leader>bn', ':bnext<CR>', { silent = true })
+vim.keymap.set('n', '<leader>bp', ':bprevious<CR>', { silent = true })
 
 -- use `+` and `-` to increment and decrement
 vim.keymap.set('n', '+', '<C-a>')
 vim.keymap.set('n', '-', '<C-x>')
 vim.keymap.set('v', '+', 'g<C-a>gv')
 vim.keymap.set('v', '-', 'g<C-x>gv')
-
--- Better indenting
-vim.keymap.set('v', '<', '<gv')
-vim.keymap.set('v', '>', '>gv')
-vim.keymap.set('n', '>', '>>_')
-vim.keymap.set('n', '<', '<<_')
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -304,6 +298,9 @@ require('lazy').setup({
         ['<leader>r'] = { name = '[R]ename', _ = 'which_key_ignore' },
         ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
         ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
+        ['<leader>b'] = { name = '[B]uffer', _ = 'which_key_ignore' },
+        ['<leader>g'] = { name = '[G]it', _ = 'which_key_ignore' },
+        ['<leader>f'] = { name = '[F]ile', _ = 'which_key_ignore' },
       }
     end,
   },
@@ -668,9 +665,23 @@ require('lazy').setup({
           {
             'rafamadriz/friendly-snippets',
             config = function()
-              require('luasnip.loaders.from_vscode').lazy_load()
+              -- require('luasnip.loaders.from_vscode').lazy_load()
               require('luasnip.loaders.from_snipmate').lazy_load()
               require('luasnip.loaders.from_lua').lazy_load()
+              require('luasnip.loaders.from_lua').lazy_load { paths = { '~/.config/nvim/lua/custom/snippets/' } }
+              require('luasnip').filetype_extend('typescript', { 'tsdoc' })
+              require('luasnip').filetype_extend('javascript', { 'jsdoc' })
+              require('luasnip').filetype_extend('lua', { 'luadoc' })
+              require('luasnip').filetype_extend('python', { 'pydoc' })
+              require('luasnip').filetype_extend('rust', { 'rustdoc' })
+              require('luasnip').filetype_extend('cs', { 'csharpdoc' })
+              require('luasnip').filetype_extend('java', { 'javadoc' })
+              require('luasnip').filetype_extend('c', { 'cdoc' })
+              require('luasnip').filetype_extend('cpp', { 'cppdoc' })
+              require('luasnip').filetype_extend('php', { 'phpdoc' })
+              require('luasnip').filetype_extend('kotlin', { 'kdoc' })
+              require('luasnip').filetype_extend('ruby', { 'rdoc' })
+              require('luasnip').filetype_extend('sh', { 'shelldoc' })
             end,
           },
         },
@@ -747,9 +758,28 @@ require('lazy').setup({
               luasnip.jump(-1)
             end
           end, { 'i', 's' }),
-
           -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
           --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
+
+          -- Adapted from the LuaSnip README
+          -- <c-k> same as <c-l>
+          -- <c-j> same as <c-h>
+          -- <c-e> for changing the active choice.
+          ['<C-e>'] = cmp.mapping(function()
+            if luasnip.choice_active() then
+              luasnip.change_choice(1)
+            end
+          end, { 'i', 's' }),
+          ['<C-k>'] = cmp.mapping(function()
+            if luasnip.expand_or_locally_jumpable() then
+              luasnip.expand_or_jump()
+            end
+          end, { 'i', 's' }),
+          ['<C-j>'] = cmp.mapping(function()
+            if luasnip.locally_jumpable(-1) then
+              luasnip.jump(-1)
+            end
+          end, { 'i', 's' }),
         },
         sources = {
           { name = 'nvim_lsp' },
