@@ -301,8 +301,10 @@ require('lazy').setup({
         ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
         ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
         ['<leader>b'] = { name = '[B]uffer', _ = 'which_key_ignore' },
-        ['<leader>g'] = { name = '[G]it', _ = 'which_key_ignore' },
+        ['<leader>g'] = { name = '[G]o', _ = 'which_key_ignore' },
         ['<leader>f'] = { name = '[F]ile', _ = 'which_key_ignore' },
+        ['<leader>h'] = { name = 'Git [H]unk', _ = 'which_key_ignore' },
+        ['<leader>t'] = { name = '[T]elescope', _ = 'which_key_ignore' },
       }
     end,
   },
@@ -337,6 +339,9 @@ require('lazy').setup({
 
       -- Useful for getting pretty icons, but requires a Nerd Font.
       { 'nvim-tree/nvim-web-devicons', enabled = vim.g.have_nerd_font },
+
+      -- File browser
+      { 'nvim-telescope/telescope-file-browser.nvim' },
     },
     config = function()
       -- Telescope is a fuzzy finder that comes with a lot of different things that
@@ -360,6 +365,36 @@ require('lazy').setup({
 
       -- [[ Configure Telescope ]]
       -- See `:help telescope` and `:help telescope.setup()`
+
+      -- https://github.com/nvim-telescope/telescope.nvim/issues/2201#issuecomment-1284691502
+      local ts_select_dir_for_grep = function(prompt_bufnr)
+        local action_state = require 'telescope.actions.state'
+        local fb = require('telescope').extensions.file_browser
+        local live_grep = require('telescope.builtin').live_grep
+        local current_line = action_state.get_current_line()
+
+        fb.file_browser {
+          files = false,
+          depth = false,
+          attach_mappings = function(prompt_bufnr)
+            require('telescope.actions').select_default:replace(function()
+              local entry_path = action_state.get_selected_entry().Path
+              local dir = entry_path:is_dir() and entry_path or entry_path:parent()
+              local relative = dir:make_relative(vim.fn.getcwd())
+              local absolute = dir:absolute()
+
+              live_grep {
+                results_title = relative .. '/',
+                cwd = absolute,
+                default_text = current_line,
+              }
+            end)
+
+            return true
+          end,
+        }
+      end
+
       require('telescope').setup {
         -- You can put your default mappings / updates / etc. in here
         --  All the info you're looking for is in `:help telescope.setup()`
@@ -369,10 +404,27 @@ require('lazy').setup({
         --     i = { ['<c-enter>'] = 'to_fuzzy_refine' },
         --   },
         -- },
-        -- pickers = {}
+
+        -- Within live_grep, C-f to select dir.
+        -- See https://github.com/nvim-telescope/telescope.nvim/issues/2201#issuecomment-1284691502
+        pickers = {
+          live_grep = {
+            mappings = {
+              i = {
+                ['<C-f>'] = ts_select_dir_for_grep,
+              },
+              n = {
+                ['<C-f>'] = ts_select_dir_for_grep,
+              },
+            },
+          },
+        },
         extensions = {
           ['ui-select'] = {
             require('telescope.themes').get_dropdown(),
+          },
+          ['file_browser'] = {
+            prompt_path = true,
           },
         },
       }
@@ -380,9 +432,11 @@ require('lazy').setup({
       -- Enable Telescope extensions if they are installed
       pcall(require('telescope').load_extension, 'fzf')
       pcall(require('telescope').load_extension, 'ui-select')
+      pcall(require('telescope').load_extension, 'file_browser')
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
+      local previewers = require 'telescope.previewers'
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
@@ -393,6 +447,21 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
       vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
+
+      vim.keymap.set('n', '<leader>tc', builtin.commands, { desc = '[T]elescope [C]ommands' })
+      vim.keymap.set('n', '<leader>th', builtin.command_history, { desc = '[T]elescope [H]istory' })
+      vim.keymap.set('n', '<leader>tq', builtin.quickfix, { desc = '[T]elescope [Q]uickfix' })
+      vim.keymap.set('n', '<leader>tl', builtin.loclist, { desc = '[T]elescope [L]ocations' })
+      vim.keymap.set('n', '<leader>tj', builtin.jumplist, { desc = '[T]elescope [J]umps' })
+      vim.keymap.set('n', '<leader>to', builtin.vim_options, { desc = '[T]elescope [O]ptions' })
+      vim.keymap.set('n', '<leader>tp', builtin.planets, { desc = '[T]elescope [P]lanets' })
+      vim.keymap.set('n', '<leader>tr', builtin.reloader, { desc = '[T]elescope [R]eloader' })
+      vim.keymap.set('n', '<leader>tt', builtin.builtin, { desc = '[T]elescope buil[T]ins' })
+      vim.keymap.set('n', '<leader>tv', previewers.cat.new, { desc = '[T]elescope pre[V]iewer' })
+
+      vim.keymap.set('n', '<leader>fb', ':Telescope file_browser<CR>', { desc = '[F]ile [B]rowser' })
+      vim.keymap.set('n', '<leader>fh', ':Telescope file_browser path=~/ cwd_to_path=true<CR>', { desc = '[F]ile [H]ome browser' })
+      vim.keymap.set('n', '<leader>fr', ':Telescope file_browser path=/ cwd_to_path=true<CR>', { desc = '[F]ile [R]oot browser' })
 
       -- Slightly advanced example of overriding default behavior and theme
       vim.keymap.set('n', '<leader>/', function()
@@ -416,6 +485,16 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sn', function()
         builtin.find_files { cwd = vim.fn.stdpath 'config' }
       end, { desc = '[S]earch [N]eovim files' })
+
+      -- Shortcut for including hidden files
+      vim.keymap.set('n', '<leader>sa', function()
+        builtin.find_files { hidden = true }
+      end, { desc = '[S]earch [A]ll files' })
+
+      -- Shortcut for searching dotfiles
+      vim.keymap.set('n', '<leader>sc', function()
+        builtin.find_files { cwd = '~/.local/share/chezmoi/' }
+      end, { desc = '[S]earch dotfile [C]onfig' })
     end,
   },
 
@@ -927,7 +1006,7 @@ require('lazy').setup({
   --
   -- require 'kickstart.plugins.debug',
   require 'kickstart.plugins.indent_line',
-  require 'kickstart.plugins.lint',
+  -- require 'kickstart.plugins.lint',
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
