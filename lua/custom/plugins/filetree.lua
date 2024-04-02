@@ -19,8 +19,8 @@ return {
       close_if_last_window = true,
       vim.keymap.set('n', '\\', ':Neotree toggle<CR>', { silent = true }),
       vim.keymap.set('n', '|', ':Neotree toggle current reveal_force_cwd<cr>', { silent = true }),
-      vim.keymap.set('n', '<leader>fs', ':Neotree toggle<cr>', { silent = true }),
-      vim.keymap.set('n', '<leader>bs', ':Neotree toggle show buffers right<cr>', { silent = true }),
+      vim.keymap.set('n', '<leader>ft', ':Neotree toggle<cr>', { silent = true, desc = '[F]ile [T]ree' }),
+      vim.keymap.set('n', '<leader>bt', ':Neotree toggle show buffers right<cr>', { silent = true, desc = '[B]uffer [T]ree' }),
 
       event_handlers = {
         {
