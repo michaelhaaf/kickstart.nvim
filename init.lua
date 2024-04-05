@@ -152,7 +152,12 @@ vim.opt.inccommand = 'split'
 vim.opt.cursorline = true
 
 -- Minimal number of screen lines to keep above and below the cursor.
-vim.opt.scrolloff = 10
+vim.opt.scrolloff = 5
+
+vim.opt.foldcolumn = '1'
+vim.opt.foldenable = true
+vim.opt.foldlevel = 99
+vim.opt.foldlevelstart = 99
 
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
@@ -307,6 +312,7 @@ require('lazy').setup({
         ['<leader>f'] = { name = '[F]ile', _ = 'which_key_ignore' },
         ['<leader>h'] = { name = 'Git [H]unk', _ = 'which_key_ignore' },
         ['<leader>t'] = { name = '[T]elescope', _ = 'which_key_ignore' },
+        ['<leader>l'] = { name = '[L]sp', _ = 'which_key_ignore' },
       }
       -- visual mode
       require('which-key').register({
@@ -734,8 +740,20 @@ require('lazy').setup({
         desc = '[F]ormat buffer',
       },
     },
+    event = { 'BufWritePre' },
+    keys = {
+      {
+        -- Customize or remove this keymap to your liking
+        '<leader>lf',
+        function()
+          require('conform').format { async = true, lsp_fallback = true }
+        end,
+        mode = '',
+        desc = 'Format buffer',
+      },
+    },
     opts = {
-      notify_on_error = false,
+      notify_on_error = true,
       format_on_save = function(bufnr)
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
@@ -749,7 +767,7 @@ require('lazy').setup({
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
-        python = { 'isort', 'black' },
+        python = { 'isort', 'autopep8' },
         bash = { 'shfmt' },
         --
         -- You can use a sub-list to tell conform to run *until* a formatter
@@ -759,6 +777,19 @@ require('lazy').setup({
         ['_'] = { 'trim_whitespace' },
       },
     },
+    config = function()
+      vim.api.nvim_create_user_command('Format', function(args)
+        local range = nil
+        if args.count ~= -1 then
+          local end_line = vim.api.nvim_buf_get_lines(0, args.line2 - 1, args.line2, true)[1]
+          range = {
+            start = { args.line1, 0 },
+            ['end'] = { args.line2, end_line:len() },
+          }
+        end
+        require('conform').format { async = true, lsp_fallback = true, range = range }
+      end, { range = true })
+    end,
   },
 
   { -- Autocompletion
@@ -784,7 +815,7 @@ require('lazy').setup({
           {
             'rafamadriz/friendly-snippets',
             config = function()
-              -- require('luasnip.loaders.from_vscode').lazy_load()
+              require('luasnip.loaders.from_vscode').lazy_load()
               require('luasnip.loaders.from_snipmate').lazy_load()
               require('luasnip.loaders.from_lua').lazy_load()
               require('luasnip.loaders.from_lua').lazy_load { paths = { '~/.config/nvim/lua/custom/snippets/' } }
