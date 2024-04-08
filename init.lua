@@ -436,7 +436,8 @@ require('lazy').setup({
             require('telescope.themes').get_dropdown(),
           },
           ['file_browser'] = {
-            prompt_path = true,
+            prompt_path = false,
+            files = false,
           },
         },
       }
