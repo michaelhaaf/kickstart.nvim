@@ -91,7 +91,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.opt`
@@ -152,7 +152,12 @@ vim.opt.inccommand = 'split'
 vim.opt.cursorline = true
 
 -- Minimal number of screen lines to keep above and below the cursor.
-vim.opt.scrolloff = 10
+vim.opt.scrolloff = 5
+
+vim.opt.foldcolumn = '1'
+vim.opt.foldenable = true
+vim.opt.foldlevel = 99
+vim.opt.foldlevelstart = 99
 
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
@@ -166,6 +171,18 @@ vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous [D]
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next [D]iagnostic message' })
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
+
+-- Buffer switching keymaps
+vim.keymap.set('n', ']b', ':bnext<CR>', { silent = true })
+vim.keymap.set('n', '[b', ':bprevious<CR>', { silent = true })
+vim.keymap.set('n', '<leader>bn', ':bnext<CR>', { silent = true })
+vim.keymap.set('n', '<leader>bp', ':bprevious<CR>', { silent = true })
+
+-- use `+` and `-` to increment and decrement
+vim.keymap.set('n', '+', '<C-a>')
+vim.keymap.set('n', '-', '<C-x>')
+vim.keymap.set('v', '+', 'g<C-a>gv')
+vim.keymap.set('v', '-', 'g<C-x>gv')
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -227,6 +244,8 @@ vim.opt.rtp:prepend(lazypath)
 require('lazy').setup({
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
   'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
+  'tpope/vim-fugitive', -- git integration
+  'tpope/vim-rhubarb', -- GitHub integration
 
   -- NOTE: Plugins can also be added by using a table,
   -- with the first argument being the link and the following
@@ -286,6 +305,12 @@ require('lazy').setup({
         ['<leader>r'] = { name = '[R]ename', _ = 'which_key_ignore' },
         ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
         ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
+        ['<leader>b'] = { name = '[B]uffer', _ = 'which_key_ignore' },
+        ['<leader>g'] = { name = '[G]o', _ = 'which_key_ignore' },
+        ['<leader>f'] = { name = '[F]ile', _ = 'which_key_ignore' },
+        ['<leader>h'] = { name = 'Git [H]unk', _ = 'which_key_ignore' },
+        ['<leader>t'] = { name = '[T]elescope', _ = 'which_key_ignore' },
+        ['<leader>l'] = { name = '[L]sp', _ = 'which_key_ignore' },
       }
     end,
   },
@@ -320,6 +345,9 @@ require('lazy').setup({
 
       -- Useful for getting pretty icons, but requires a Nerd Font.
       { 'nvim-tree/nvim-web-devicons', enabled = vim.g.have_nerd_font },
+
+      -- File browser
+      { 'nvim-telescope/telescope-file-browser.nvim' },
     },
     config = function()
       -- Telescope is a fuzzy finder that comes with a lot of different things that
@@ -343,6 +371,36 @@ require('lazy').setup({
 
       -- [[ Configure Telescope ]]
       -- See `:help telescope` and `:help telescope.setup()`
+
+      -- https://github.com/nvim-telescope/telescope.nvim/issues/2201#issuecomment-1284691502
+      local ts_select_dir_for_grep = function(prompt_bufnr)
+        local action_state = require 'telescope.actions.state'
+        local fb = require('telescope').extensions.file_browser
+        local live_grep = require('telescope.builtin').live_grep
+        local current_line = action_state.get_current_line()
+
+        fb.file_browser {
+          files = false,
+          depth = false,
+          attach_mappings = function(prompt_bufnr)
+            require('telescope.actions').select_default:replace(function()
+              local entry_path = action_state.get_selected_entry().Path
+              local dir = entry_path:is_dir() and entry_path or entry_path:parent()
+              local relative = dir:make_relative(vim.fn.getcwd())
+              local absolute = dir:absolute()
+
+              live_grep {
+                results_title = relative .. '/',
+                cwd = absolute,
+                default_text = current_line,
+              }
+            end)
+
+            return true
+          end,
+        }
+      end
+
       require('telescope').setup {
         -- You can put your default mappings / updates / etc. in here
         --  All the info you're looking for is in `:help telescope.setup()`
@@ -352,10 +410,27 @@ require('lazy').setup({
         --     i = { ['<c-enter>'] = 'to_fuzzy_refine' },
         --   },
         -- },
-        -- pickers = {}
+
+        -- Within live_grep, C-f to select dir.
+        -- See https://github.com/nvim-telescope/telescope.nvim/issues/2201#issuecomment-1284691502
+        pickers = {
+          live_grep = {
+            mappings = {
+              i = {
+                ['<C-f>'] = ts_select_dir_for_grep,
+              },
+              n = {
+                ['<C-f>'] = ts_select_dir_for_grep,
+              },
+            },
+          },
+        },
         extensions = {
           ['ui-select'] = {
             require('telescope.themes').get_dropdown(),
+          },
+          ['file_browser'] = {
+            prompt_path = true,
           },
         },
       }
@@ -363,9 +438,11 @@ require('lazy').setup({
       -- Enable Telescope extensions if they are installed
       pcall(require('telescope').load_extension, 'fzf')
       pcall(require('telescope').load_extension, 'ui-select')
+      pcall(require('telescope').load_extension, 'file_browser')
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
+      local previewers = require 'telescope.previewers'
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
@@ -377,12 +454,27 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
       vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
 
+      vim.keymap.set('n', '<leader>tc', builtin.commands, { desc = '[T]elescope [C]ommands' })
+      vim.keymap.set('n', '<leader>th', builtin.command_history, { desc = '[T]elescope [H]istory' })
+      vim.keymap.set('n', '<leader>tq', builtin.quickfix, { desc = '[T]elescope [Q]uickfix' })
+      vim.keymap.set('n', '<leader>tl', builtin.loclist, { desc = '[T]elescope [L]ocations' })
+      vim.keymap.set('n', '<leader>tj', builtin.jumplist, { desc = '[T]elescope [J]umps' })
+      vim.keymap.set('n', '<leader>to', builtin.vim_options, { desc = '[T]elescope [O]ptions' })
+      vim.keymap.set('n', '<leader>tp', builtin.planets, { desc = '[T]elescope [P]lanets' })
+      vim.keymap.set('n', '<leader>tr', builtin.reloader, { desc = '[T]elescope [R]eloader' })
+      vim.keymap.set('n', '<leader>tt', builtin.builtin, { desc = '[T]elescope buil[T]ins' })
+      vim.keymap.set('n', '<leader>tv', previewers.cat.new, { desc = '[T]elescope pre[V]iewer' })
+
+      vim.keymap.set('n', '<leader>fb', ':Telescope file_browser<CR>', { desc = '[F]ile [B]rowser' })
+      vim.keymap.set('n', '<leader>fh', ':Telescope file_browser path=~/ cwd_to_path=true<CR>', { desc = '[F]ile [H]ome browser' })
+      vim.keymap.set('n', '<leader>fr', ':Telescope file_browser path=/ cwd_to_path=true<CR>', { desc = '[F]ile [R]oot browser' })
+
       -- Slightly advanced example of overriding default behavior and theme
       vim.keymap.set('n', '<leader>/', function()
         -- You can pass additional configuration to Telescope to change the theme, layout, etc.
         builtin.current_buffer_fuzzy_find(require('telescope.themes').get_dropdown {
           winblend = 10,
-          previewer = false,
+          previewer = true,
         })
       end, { desc = '[/] Fuzzily search in current buffer' })
 
@@ -399,6 +491,16 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sn', function()
         builtin.find_files { cwd = vim.fn.stdpath 'config' }
       end, { desc = '[S]earch [N]eovim files' })
+
+      -- Shortcut for including hidden files
+      vim.keymap.set('n', '<leader>sa', function()
+        builtin.find_files { hidden = true }
+      end, { desc = '[S]earch [A]ll files' })
+
+      -- Shortcut for searching dotfiles
+      vim.keymap.set('n', '<leader>sc', function()
+        builtin.find_files { cwd = '~/.local/share/chezmoi/' }
+      end, { desc = '[S]earch dotfile [C]onfig' })
     end,
   },
 
@@ -561,7 +663,7 @@ require('lazy').setup({
                 callSnippet = 'Replace',
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-              -- diagnostics = { disable = { 'missing-fields' } },
+              diagnostics = { disable = { 'missing-fields' } },
             },
           },
         },
@@ -603,7 +705,7 @@ require('lazy').setup({
     lazy = false,
     keys = {
       {
-        '<leader>f',
+        '<leader>lf',
         function()
           require('conform').format { async = true, lsp_fallback = true }
         end,
@@ -612,7 +714,7 @@ require('lazy').setup({
       },
     },
     opts = {
-      notify_on_error = false,
+      notify_on_error = true,
       format_on_save = function(bufnr)
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
@@ -626,13 +728,29 @@ require('lazy').setup({
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
-        -- python = { "isort", "black" },
+        python = { 'isort', 'autopep8' },
+        bash = { 'shfmt' },
         --
         -- You can use a sub-list to tell conform to run *until* a formatter
         -- is found.
         -- javascript = { { "prettierd", "prettier" } },
+        ['*'] = { 'codespell' },
+        ['_'] = { 'trim_whitespace' },
       },
     },
+    config = function()
+      vim.api.nvim_create_user_command('Format', function(args)
+        local range = nil
+        if args.count ~= -1 then
+          local end_line = vim.api.nvim_buf_get_lines(0, args.line2 - 1, args.line2, true)[1]
+          range = {
+            start = { args.line1, 0 },
+            ['end'] = { args.line2, end_line:len() },
+          }
+        end
+        require('conform').format { async = true, lsp_fallback = true, range = range }
+      end, { range = true })
+    end,
   },
 
   { -- Autocompletion
@@ -655,12 +773,35 @@ require('lazy').setup({
           -- `friendly-snippets` contains a variety of premade snippets.
           --    See the README about individual language/framework/plugin snippets:
           --    https://github.com/rafamadriz/friendly-snippets
-          -- {
-          --   'rafamadriz/friendly-snippets',
-          --   config = function()
-          --     require('luasnip.loaders.from_vscode').lazy_load()
-          --   end,
-          -- },
+          {
+            'rafamadriz/friendly-snippets',
+            config = function()
+              require('luasnip.loaders.from_vscode').lazy_load()
+              require('luasnip.loaders.from_snipmate').lazy_load()
+              require('luasnip.loaders.from_lua').lazy_load()
+              require('luasnip.loaders.from_lua').lazy_load { paths = { '~/.config/nvim/lua/custom/snippets/' } }
+              require('luasnip').filetype_extend('typescript', { 'tsdoc' })
+              require('luasnip').filetype_extend('javascript', { 'jsdoc' })
+              require('luasnip').filetype_extend('lua', { 'luadoc' })
+              require('luasnip').filetype_extend('python', { 'pydoc' })
+              require('luasnip').filetype_extend('rust', { 'rustdoc' })
+              require('luasnip').filetype_extend('cs', { 'csharpdoc' })
+              require('luasnip').filetype_extend('java', { 'javadoc' })
+              require('luasnip').filetype_extend('c', { 'cdoc' })
+              require('luasnip').filetype_extend('cpp', { 'cppdoc' })
+              require('luasnip').filetype_extend('php', { 'phpdoc' })
+              require('luasnip').filetype_extend('kotlin', { 'kdoc' })
+              require('luasnip').filetype_extend('ruby', { 'rdoc' })
+              require('luasnip').filetype_extend('sh', { 'shelldoc' })
+            end,
+          },
+        },
+        opts = {
+          keep_roots = true,
+          link_roots = true,
+          link_children = true,
+          delete_check_events = 'TextChanged',
+          region_check_events = 'CursorMoved',
         },
       },
       'saadparwaiz1/cmp_luasnip',
@@ -670,6 +811,7 @@ require('lazy').setup({
       --  into multiple repos for maintenance purposes.
       'hrsh7th/cmp-nvim-lsp',
       'hrsh7th/cmp-path',
+      'hrsh7th/cmp-buffer',
     },
     config = function()
       -- See `:help cmp`
@@ -727,14 +869,34 @@ require('lazy').setup({
               luasnip.jump(-1)
             end
           end, { 'i', 's' }),
-
           -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
           --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
+
+          -- Adapted from the LuaSnip README
+          -- <c-k> same as <c-l>
+          -- <c-j> same as <c-h>
+          -- <c-e> for changing the active choice.
+          ['<C-e>'] = cmp.mapping(function()
+            if luasnip.choice_active() then
+              luasnip.change_choice(1)
+            end
+          end, { 'i', 's' }),
+          ['<C-k>'] = cmp.mapping(function()
+            if luasnip.expand_or_locally_jumpable() then
+              luasnip.expand_or_jump()
+            end
+          end, { 'i', 's' }),
+          ['<C-j>'] = cmp.mapping(function()
+            if luasnip.locally_jumpable(-1) then
+              luasnip.jump(-1)
+            end
+          end, { 'i', 's' }),
         },
         sources = {
           { name = 'nvim_lsp' },
           { name = 'luasnip' },
           { name = 'path' },
+          { name = 'buffer' },
         },
       }
     end,
@@ -745,16 +907,44 @@ require('lazy').setup({
     -- change the command in the config to whatever the name of that colorscheme is.
     --
     -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-    'folke/tokyonight.nvim',
+    'catppuccin/nvim',
     priority = 1000, -- Make sure to load this before all the other start plugins.
     init = function()
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight-night'
+      vim.cmd.colorscheme 'catppuccin-macchiato'
 
       -- You can configure highlights by doing something like:
       vim.cmd.hi 'Comment gui=none'
+    end,
+    config = function()
+      require('catppuccin').setup {
+        transparent_background = true,
+        term_colors = true,
+        color_overrides = {
+          macchiato = {
+            pink = '#eb6f92',
+            mauve = '#c4a7e7',
+            green = '#9ccfd8',
+            teal = '#3e8fb0',
+            yellow = '#f6c177',
+            peach = '#ea9a97',
+            text = '#e0def4',
+          },
+        },
+        integrations = {
+          cmp = true,
+          gitsigns = true,
+          neotree = true,
+          treesitter = true,
+          notify = true,
+          mini = {
+            enabled = true,
+            indentscope_color = '',
+          },
+        },
+      }
     end,
   },
 
@@ -778,6 +968,12 @@ require('lazy').setup({
       -- - sd'   - [S]urround [D]elete [']quotes
       -- - sr)'  - [S]urround [R]eplace [)] [']
       require('mini.surround').setup()
+
+      require('mini.operators').setup()
+
+      require('mini.bracketed').setup()
+
+      require('mini.move').setup()
 
       -- Simple and easy statusline.
       --  You could remove this setup call if you don't like it,
@@ -839,7 +1035,7 @@ require('lazy').setup({
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
   -- require 'kickstart.plugins.debug',
-  -- require 'kickstart.plugins.indent_line',
+  require 'kickstart.plugins.indent_line',
   -- require 'kickstart.plugins.lint',
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
@@ -847,7 +1043,7 @@ require('lazy').setup({
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   --    For additional information, see `:help lazy.nvim-lazy.nvim-structuring-your-plugins`
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
@@ -869,6 +1065,10 @@ require('lazy').setup({
     },
   },
 })
+
+vim.treesitter.language.register('markdown', 'mdx')
+vim.treesitter.language.register('markdown', 'qmd')
+vim.treesitter.language.register('markdown', 'mdoc')
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
