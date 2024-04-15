@@ -321,6 +321,37 @@ require('lazy').setup({
     end,
   },
 
+
+  { -- show tree of symbols in the current file
+    'simrat39/symbols-outline.nvim',
+    cmd = 'SymbolsOutline',
+    keys = {
+      { '<leader>lo', ':SymbolsOutline<cr>', desc = 'symbols outline' },
+    },
+    opts = {},
+  },
+
+  {
+    'kylechui/nvim-surround',
+    event = 'VeryLazy',
+    opts = {},
+  },
+
+  { -- or show symbols in the current file as breadcrumbs
+    'Bekaboo/dropbar.nvim',
+    enabled = function()
+      return vim.fn.has 'nvim-0.10' == 1
+    end,
+    dependencies = {
+      'nvim-telescope/telescope-fzf-native.nvim',
+    },
+    config = function()
+      -- turn off global option for windowline
+      vim.opt.winbar = nil
+      vim.keymap.set('n', '<leader>ls', require('dropbar.api').pick, { desc = '[s]ymbols' })
+    end,
+  },
+
   -- NOTE: Plugins can specify dependencies.
   --
   -- The dependencies are proper plugin specifications as well - anything
@@ -473,8 +504,10 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>tv', previewers.cat.new, { desc = '[T]elescope pre[V]iewer' })
 
       vim.keymap.set('n', '<leader>fb', ':Telescope file_browser<CR>', { desc = '[F]ile [B]rowser' })
-      vim.keymap.set('n', '<leader>fh', ':Telescope file_browser path=~/ cwd_to_path=true<CR>', { desc = '[F]ile [H]ome browser' })
-      vim.keymap.set('n', '<leader>fr', ':Telescope file_browser path=/ cwd_to_path=true<CR>', { desc = '[F]ile [R]oot browser' })
+      vim.keymap.set('n', '<leader>fh', ':Telescope file_browser path=~/ cwd_to_path=true<CR>',
+        { desc = '[F]ile [H]ome browser' })
+      vim.keymap.set('n', '<leader>fr', ':Telescope file_browser path=/ cwd_to_path=true<CR>',
+        { desc = '[F]ile [R]oot browser' })
 
       -- Slightly advanced example of overriding default behavior and theme
       vim.keymap.set('n', '<leader>/', function()
@@ -657,6 +690,7 @@ require('lazy').setup({
       --  So, we create new capabilities with nvim cmp, and then broadcast that to the servers.
       local capabilities = vim.lsp.protocol.make_client_capabilities()
       capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
+      capabilities.textDocument.completion.completionItem.snippetSupport = true
 
       -- Enable the following language servers
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
@@ -667,6 +701,7 @@ require('lazy').setup({
       --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
+      local util = require 'lspconfig.util'
       local servers = {
         -- clangd = {},
         -- gopls = {},
@@ -681,10 +716,20 @@ require('lazy').setup({
         -- tsserver = {},
         --
 
+        -- also needs:
+        -- $home/.config/marksman/config.toml :
+        -- [core]
+        -- markdown.file_extensions = ["md", "markdown", "qmd"]
+        marksman = {
+          capabilities = capabilities,
+          filetypes = { 'markdown', 'quarto' },
+          root_dir = util.root_pattern('.git', '.marksman.toml', '_quarto.yml'),
+        },
+
         lua_ls = {
           -- cmd = {...},
           -- filetypes = { ...},
-          -- capabilities = {},
+          capabilities = capabilities,
           settings = {
             Lua = {
               completion = {
@@ -710,6 +755,11 @@ require('lazy').setup({
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
+        'marksman',
+        'markdownlint',
+        'isort',
+        'autopep8',
+        'tree-sitter-cli',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -731,6 +781,8 @@ require('lazy').setup({
   { -- Autoformat
     'stevearc/conform.nvim',
     lazy = false,
+    event = { 'BufWritePre' },
+    enabled = true,
     keys = {
       {
         '<leader>f',
@@ -820,19 +872,14 @@ require('lazy').setup({
               require('luasnip.loaders.from_snipmate').lazy_load()
               require('luasnip.loaders.from_lua').lazy_load()
               require('luasnip.loaders.from_lua').lazy_load { paths = { '~/.config/nvim/lua/custom/snippets/' } }
-              require('luasnip').filetype_extend('typescript', { 'tsdoc' })
-              require('luasnip').filetype_extend('javascript', { 'jsdoc' })
-              require('luasnip').filetype_extend('lua', { 'luadoc' })
-              require('luasnip').filetype_extend('python', { 'pydoc' })
-              require('luasnip').filetype_extend('rust', { 'rustdoc' })
-              require('luasnip').filetype_extend('cs', { 'csharpdoc' })
-              require('luasnip').filetype_extend('java', { 'javadoc' })
-              require('luasnip').filetype_extend('c', { 'cdoc' })
-              require('luasnip').filetype_extend('cpp', { 'cppdoc' })
-              require('luasnip').filetype_extend('php', { 'phpdoc' })
-              require('luasnip').filetype_extend('kotlin', { 'kdoc' })
-              require('luasnip').filetype_extend('ruby', { 'rdoc' })
-              require('luasnip').filetype_extend('sh', { 'shelldoc' })
+              local luasnip = require('luasnip')
+              luasnip.filetype_extend('typescript', { 'tsdoc' })
+              luasnip.filetype_extend('javascript', { 'jsdoc' })
+              luasnip.filetype_extend('lua', { 'luadoc' })
+              luasnip.filetype_extend('python', { 'pydoc' })
+              luasnip.filetype_extend('sh', { 'shelldoc' })
+              luasnip.filetype_extend('quarto', { 'markdown' })
+              luasnip.filetype_extend('rmarkdown', { 'markdown' })
             end,
           },
         },
@@ -1013,13 +1060,15 @@ require('lazy').setup({
       -- - saiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
       -- - sd'   - [S]urround [D]elete [']quotes
       -- - sr)'  - [S]urround [R]eplace [)] [']
-      require('mini.surround').setup()
+      -- require('mini.surround').setup()
+      --
+      require('mini.bufremove').setup()
 
-      require('mini.operators').setup()
+      -- require('mini.operators').setup()
 
       require('mini.bracketed').setup()
 
-      require('mini.move').setup()
+      -- require('mini.move').setup()
 
       -- Simple and easy statusline.
       --  You could remove this setup call if you don't like it,
@@ -1044,7 +1093,7 @@ require('lazy').setup({
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
     opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'vim', 'vimdoc' },
+      ensure_installed = { 'bash', 'c', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'python', 'vim', 'vimdoc' },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
@@ -1118,6 +1167,8 @@ require('lazy').setup({
     },
   },
 })
+
+
 
 vim.treesitter.language.register('markdown', 'mdx')
 vim.treesitter.language.register('markdown', 'qmd')
