@@ -93,6 +93,8 @@ vim.g.maplocalleader = ' '
 -- Set to true if you have a Nerd Font installed
 vim.g.have_nerd_font = true
 
+vim.g.python3_host_prog = '~/development/venvs/neovim/bin/python'
+
 -- [[ Setting options ]]
 -- See `:help vim.opt`
 -- NOTE: You can change these options as you wish!
@@ -321,7 +323,6 @@ require('lazy').setup({
     end,
   },
 
-
   { -- show tree of symbols in the current file
     'simrat39/symbols-outline.nvim',
     cmd = 'SymbolsOutline',
@@ -504,10 +505,8 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>tv', previewers.cat.new, { desc = '[T]elescope pre[V]iewer' })
 
       vim.keymap.set('n', '<leader>fb', ':Telescope file_browser<CR>', { desc = '[F]ile [B]rowser' })
-      vim.keymap.set('n', '<leader>fh', ':Telescope file_browser path=~/ cwd_to_path=true<CR>',
-        { desc = '[F]ile [H]ome browser' })
-      vim.keymap.set('n', '<leader>fr', ':Telescope file_browser path=/ cwd_to_path=true<CR>',
-        { desc = '[F]ile [R]oot browser' })
+      vim.keymap.set('n', '<leader>fh', ':Telescope file_browser path=~/ cwd_to_path=true<CR>', { desc = '[F]ile [H]ome browser' })
+      vim.keymap.set('n', '<leader>fr', ':Telescope file_browser path=/ cwd_to_path=true<CR>', { desc = '[F]ile [R]oot browser' })
 
       -- Slightly advanced example of overriding default behavior and theme
       vim.keymap.set('n', '<leader>/', function()
@@ -720,11 +719,11 @@ require('lazy').setup({
         -- $home/.config/marksman/config.toml :
         -- [core]
         -- markdown.file_extensions = ["md", "markdown", "qmd"]
-        marksman = {
-          capabilities = capabilities,
-          filetypes = { 'markdown', 'quarto' },
-          root_dir = util.root_pattern('.git', '.marksman.toml', '_quarto.yml'),
-        },
+        -- marksman = {
+        --   capabilities = capabilities,
+        --   filetypes = { 'markdown', 'quarto' },
+        --   root_dir = util.root_pattern('.git', '.marksman.toml', '_quarto.yml'),
+        -- },
 
         lua_ls = {
           -- cmd = {...},
@@ -755,7 +754,7 @@ require('lazy').setup({
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
-        'marksman',
+        -- 'marksman',
         'markdownlint',
         'isort',
         'autopep8',
@@ -781,8 +780,6 @@ require('lazy').setup({
   { -- Autoformat
     'stevearc/conform.nvim',
     lazy = false,
-    event = { 'BufWritePre' },
-    enabled = true,
     keys = {
       {
         '<leader>f',
@@ -793,20 +790,8 @@ require('lazy').setup({
         desc = '[F]ormat buffer',
       },
     },
-    event = { 'BufWritePre' },
-    keys = {
-      {
-        -- Customize or remove this keymap to your liking
-        '<leader>lf',
-        function()
-          require('conform').format { async = true, lsp_fallback = true }
-        end,
-        mode = '',
-        desc = 'Format buffer',
-      },
-    },
     opts = {
-      notify_on_error = true,
+      notify_on_error = false,
       format_on_save = function(bufnr)
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
@@ -820,29 +805,13 @@ require('lazy').setup({
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
-        python = { 'isort', 'autopep8' },
-        bash = { 'shfmt' },
+        python = { "isort", "autopep8" },
         --
         -- You can use a sub-list to tell conform to run *until* a formatter
         -- is found.
         -- javascript = { { "prettierd", "prettier" } },
-        ['*'] = { 'codespell' },
-        ['_'] = { 'trim_whitespace' },
       },
     },
-    config = function()
-      vim.api.nvim_create_user_command('Format', function(args)
-        local range = nil
-        if args.count ~= -1 then
-          local end_line = vim.api.nvim_buf_get_lines(0, args.line2 - 1, args.line2, true)[1]
-          range = {
-            start = { args.line1, 0 },
-            ['end'] = { args.line2, end_line:len() },
-          }
-        end
-        require('conform').format { async = true, lsp_fallback = true, range = range }
-      end, { range = true })
-    end,
   },
 
   { -- Autocompletion
@@ -872,7 +841,7 @@ require('lazy').setup({
               require('luasnip.loaders.from_snipmate').lazy_load()
               require('luasnip.loaders.from_lua').lazy_load()
               require('luasnip.loaders.from_lua').lazy_load { paths = { '~/.config/nvim/lua/custom/snippets/' } }
-              local luasnip = require('luasnip')
+              local luasnip = require 'luasnip'
               luasnip.filetype_extend('typescript', { 'tsdoc' })
               luasnip.filetype_extend('javascript', { 'jsdoc' })
               luasnip.filetype_extend('lua', { 'luadoc' })
@@ -1167,8 +1136,6 @@ require('lazy').setup({
     },
   },
 })
-
-
 
 vim.treesitter.language.register('markdown', 'mdx')
 vim.treesitter.language.register('markdown', 'qmd')
